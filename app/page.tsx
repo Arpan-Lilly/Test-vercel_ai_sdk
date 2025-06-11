@@ -1,103 +1,208 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState, useEffect } from 'react';
+import { useChat } from 'ai/react';
+import ReactMarkdown from 'react-markdown';
+import React from 'react';
+
+const ALL_ITEMS = [
+  { id: 1, image: '/cat1.png', title: 'AI', description: 'AI in techhq' },
+  { id: 2, image: '/tech1.png', title: 'Argo', description: 'Details about argo in cats' },
+  { id: 3, image: '/cat2.png', title: 'CATS', description: 'CATS docs' },
+  { id: 4, image: '/tech2.png', title: 'TechHQ Pro', description: 'Professional TechHQ tool.' },
+];
+
+function MarketplaceCatalog({ items, onItemClick, isLoading }) {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      {items.map(item => (
+        <div
+          key={item.id}
+          className="border dark:border-gray-700 rounded-xl p-6 flex flex-col items-center bg-white dark:bg-gray-800 shadow-lg hover:scale-105 transition-transform duration-300"
+        >
+          <img
+            src={item.image}
+            alt={item.title}
+            className="w-32 h-32 object-cover mb-4 rounded-lg shadow-md transition-transform hover:scale-110"
+          />
+          <div className="font-bold text-xl mb-2 dark:text-white text-center">{item.title}</div>
+          <div className="text-sm text-gray-600 dark:text-gray-300 mb-4 text-center">{item.description}</div>
+          <button
+            className={`mt-auto px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white rounded-full shadow-md transition ${
+              isLoading ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+            onClick={() => onItemClick(item)}
+            disabled={isLoading}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            Learn More
+          </button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+      ))}
+    </div>
+  );
+}
+
+function parseAssistantMessage(content: string) {
+  try {
+    return JSON.parse(content);
+  } catch {
+    return null;
+  }
+}
+
+export default function ChatMarketplace() {
+  const [error, setError] = useState<string | null>(null);
+  const [catalogItems, setCatalogItems] = useState(ALL_ITEMS);
+  const [dark, setDark] = useState(false);
+  const [detailedAnswer, setDetailedAnswer] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (dark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [dark]);
+
+  const toggleDark = () => {
+    setDark(!dark);
+  };
+
+  const { messages, input, handleInputChange, handleSubmit, isLoading, append } = useChat({
+    api: '/api/chat',
+    streamProtocol: 'text',
+    onError: (error) => setError(error.message),
+    onFinish: (message) => {
+      const parsed = parseAssistantMessage(message.content);
+      if (parsed && Array.isArray(parsed.relevantProducts) && parsed.relevantProducts.length > 0) {
+        setCatalogItems(ALL_ITEMS.filter(item => parsed.relevantProducts.includes(item.id)));
+      } else {
+        setCatalogItems(ALL_ITEMS);
+      }
+      setDetailedAnswer(parsed?.answer || null);
+    },
+  });
+
+  const handleCatalogItemClick = (item) => {
+    const question = `Tell me more about ${item.title}`;
+    append({
+      id: `${Date.now()}`,
+      role: 'user',
+      content: question,
+    });
+    handleSubmit(undefined, {
+      body: { input: question },
+    });
+  };
+
+  return (
+    <div className="flex h-screen bg-gradient-to-br from-gray-100 to-gray-300 dark:from-gray-900 dark:to-gray-800 transition-colors">
+      {/* Dark mode toggle */}
+      <div className="absolute top-4 right-4 z-10 flex items-center space-x-2">
+        <span className="text-sm text-gray-800 dark:text-gray-200">Light</span>
+        <button
+          className="w-14 h-7 flex items-center bg-gray-300 dark:bg-gray-600 rounded-full p-1 transition"
+          onClick={toggleDark}
+          aria-label="Toggle dark mode"
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+          <div
+            className={`w-6 h-6 bg-white dark:bg-gray-800 rounded-full shadow-md transform transition-transform ${
+              dark ? 'translate-x-7' : ''
+            }`}
+          ></div>
+        </button>
+        <span className="text-sm text-gray-800 dark:text-gray-200">Dark</span>
+      </div>
+      {/* Chatbot Section */}
+      <div className="w-full md:w-1/2 border-r dark:border-gray-800 flex flex-col bg-white dark:bg-gray-900 shadow-lg">
+        <div className="flex-grow overflow-auto p-6 space-y-6">
+          {messages.map((m, idx) => {
+            if (m.role === 'assistant') {
+              const parsed = parseAssistantMessage(m.content);
+              if (parsed) {
+                return (
+                  <div
+                    key={idx}
+                    className="p-6 rounded-xl bg-gradient-to-r from-green-100 to-green-200 dark:from-green-800 dark:to-green-900 shadow-md"
+                  >
+                    {parsed.summary ? (
+                      <>
+                        <div className="font-semibold text-gray-700 dark:text-gray-200 mb-3">{parsed.summary}</div>
+                      </>
+                    ) : (
+                      <div className="prose dark:prose-invert max-w-none">
+                        <ReactMarkdown>{parsed.normalAnswer}</ReactMarkdown>
+                      </div>
+                    )}
+                    {parsed.relevantProducts && parsed.relevantProducts.length > 0 && (
+                      <div className="mt-3 text-sm text-green-700 dark:text-green-300">
+                        <b>Recommended products:</b>{' '}
+                        {ALL_ITEMS.filter(item => parsed.relevantProducts.includes(item.id))
+                          .map(item => item.title)
+                          .join(', ')}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+            }
+            return (
+              <div
+                key={idx}
+                className={`p-6 rounded-xl ${
+                  m.role === 'user'
+                    ? 'bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-800 dark:to-blue-900'
+                    : 'bg-gray-50 dark:bg-gray-800'
+                } shadow-md`}
+              >
+                <b
+                  className={`block mb-2 ${
+                    m.role === 'user' ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-200'
+                  }`}
+                >
+                  {m.role === 'user' ? 'You' : 'Assistant'}:
+                </b>
+                {m.content}
+              </div>
+            );
+          })}
+          {isLoading && (
+            <div className="p-3 text-gray-500 dark:text-gray-300">
+              Grabbing up info for you.....
+            </div>
+          )}
+          {error && <div className="p-3 text-red-500">{error}</div>}
+        </div>
+        <form onSubmit={handleSubmit} className="flex p-6 border-t dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
+          <input
+            className="flex-grow p-4 border rounded-lg dark:bg-gray-800 dark:text-white dark:border-gray-700 shadow-sm"
+            value={input}
+            onChange={handleInputChange}
+            placeholder="Ask about CATS, TechHQ, or products..."
+            disabled={isLoading}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <button
+            className="ml-3 px-8 py-3 bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white rounded-lg shadow-md transition"
+            type="submit"
+            disabled={isLoading}
+          >
+            <span className="material-icons">send</span>
+          </button>
+        </form>
+      </div>
+      {/* Marketplace Section */}
+      <div className="w-full md:w-1/2 p-10 overflow-auto bg-gray-50 dark:bg-gray-900">
+        <h2 className="text-4xl font-extrabold mb-8 text-gray-800 dark:text-white">Digital Marketplace</h2>
+        <MarketplaceCatalog items={catalogItems} onItemClick={handleCatalogItemClick} isLoading={isLoading} />
+        {/* Detailed Answer Section */}
+        {detailedAnswer && (
+          <div className="mt-8 p-6 rounded-xl bg-gradient-to-r from-green-100 to-green-200 dark:from-green-800 dark:to-green-900 shadow-md">
+            <div className="prose dark:prose-invert max-w-none">
+              <ReactMarkdown>{detailedAnswer}</ReactMarkdown>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
