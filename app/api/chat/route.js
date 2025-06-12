@@ -54,6 +54,7 @@ Guidelines:
 - When the user asks a question, answer as helpfully as possible using the provided context, even if the question is about only CATS, only TechHQ, or both.
 - If the question is about both, compare or relate them as needed.
 - If you don't find relevant information in the context, say so, but still try to provide a general helpful answer based on what you know.
+- If the question is asking about something in brief. Please provide a concise answer.
 
 Context:
 ${context}
@@ -109,7 +110,7 @@ try {
     let summary = null;
     let detailedAnswer = null;
 
-    if (lineCount > 10) {
+    if (lineCount > 16) {
   // Define agents for summary and detailed explanation
   const summaryAgent = {
     role: 'system',
@@ -119,6 +120,8 @@ You are an assistant specializing in generating summaries.
 Guidelines:
 - Generate a concise summary of the following text:
 ${normalAnswer}
+
+- Also mention something in the way of "For more details, please refer to the detailed explanation on the right.". You can change this text to suit your needs.
 `
   };
 
