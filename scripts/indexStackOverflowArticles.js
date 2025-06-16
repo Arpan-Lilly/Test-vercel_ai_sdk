@@ -7,7 +7,7 @@
 
 // // StackOverflow API configuration
 // const stackOverflowApiUrl = 'https://elilillyco.stackenterprise.co/api/v3/articles';
-// const bearerToken = 'rl_13AeCTrqhHSh6d6UkDu3AKNnB';
+// const bearerToken = '';
 
 // /**
 //  * Fetch articles from StackOverflow API.
