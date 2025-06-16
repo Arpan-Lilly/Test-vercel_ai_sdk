@@ -6,6 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import React from 'react';
 import SendIcon from '@mui/icons-material/Send';
 import MicIcon from '@mui/icons-material/Mic';
+import Image from 'next/image';
 
 const ALL_ITEMS = [
 	{ id: 1, image: '/cat1.png', title: 'AI', description: 'AI in TechHQ' },
@@ -14,25 +15,39 @@ const ALL_ITEMS = [
 	{ id: 4, image: '/tech2.png', title: 'TechHQ Pro', description: 'Professional TechHQ tool.' },
 ];
 
-function MarketplaceCatalog({ items, onItemClick, isLoading }) {
+interface MarketplaceItem {
+	id: number;
+	image: string;
+	title: string;
+	description: string;
+}
+
+interface MarketplaceCatalogProps {
+	items: MarketplaceItem[];
+	onItemClick: (item: MarketplaceItem) => void;
+	isLoading: boolean;
+}
+
+function MarketplaceCatalog({ items, onItemClick, isLoading }: MarketplaceCatalogProps) {
 	return (
 		<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-			{items.map(item => (
+			{items.map((item: MarketplaceItem) => (
 				<div
 					key={item.id}
 					className="border dark:border-gray-700 rounded-xl p-6 flex flex-col items-center bg-white dark:bg-gray-800 shadow-lg hover:scale-105 transition-transform duration-300"
 				>
-					<img
+					<Image
 						src={item.image}
 						alt={item.title}
+						width={128}
+						height={128}
 						className="w-32 h-32 object-cover mb-4 rounded-lg shadow-md transition-transform hover:scale-110"
 					/>
 					<div className="font-bold text-xl mb-2 dark:text-white text-center">{item.title}</div>
 					<div className="text-sm text-gray-600 dark:text-gray-300 mb-4 text-center">{item.description}</div>
 					<button
-						className={`mt-auto px-6 py-3 bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white rounded-full shadow-md transition ${
-							isLoading ? 'opacity-50 cursor-not-allowed' : ''
-						}`}
+						className={`mt-auto px-6 py-3 text-white rounded-full shadow-md transition ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+						style={{ backgroundColor: '#003A6C' }}
 						onClick={() => onItemClick(item)}
 						disabled={isLoading}
 					>
@@ -86,7 +101,7 @@ export default function ChatMarketplace() {
         },
     });
 
-    const handleCatalogItemClick = (item) => {
+    const handleCatalogItemClick = (item: MarketplaceItem) => {
         const question = `Tell me more about ${item.title}`;
         append({
             id: `${Date.now()}`,
@@ -106,9 +121,9 @@ export default function ChatMarketplace() {
     return (
         <div className="flex h-screen bg-gradient-to-br from-gray-100 to-gray-300 dark:from-gray-900 dark:to-gray-800 transition-colors">
             {/* Top Banner */}
-            <div className="absolute top-0 right-0 md:w-2/3 w-full flex items-center justify-between bg-red-600 text-white py-2 px-6 font-bold text-lg shadow mb-2 z-10 border-black border-t-[2px] border-b-[2px] border-r-[2px] border-l-0 rounded-none" style={{ height: '48px' }}>
-                <span className="text-lg md:text-xl">Digital Core Marketplace</span>
-                <div className="flex items-center space-x-2">
+            <div className="absolute top-0 right-0 md:w-2/3 w-full flex items-center justify-between border-black border-[3px] rounded-none" style={{ backgroundColor: '#003A6C', height: '48px' }}>
+                <span className="text-lg md:text-xl text-white font-bold pl-4">Digital Core Marketplace</span>
+                <div className="flex items-center space-x-2 pr-4">
                     <span className="text-sm text-white drop-shadow">Light</span>
                     <button
                         className="w-14 h-7 flex items-center bg-white bg-opacity-60 dark:bg-gray-700 rounded-full p-1 border border-gray-300 dark:border-gray-700 shadow transition"
@@ -128,73 +143,81 @@ export default function ChatMarketplace() {
             {/* Chatbot Section */}
             <div className="w-full md:w-1/3 border-r dark:border-gray-800 flex flex-col bg-white dark:bg-gray-900 shadow-lg pt-0">
                 {/* Chatimus Prime Banner */}
-                <div className="w-full bg-red-600 text-white text-center py-2 font-bold text-lg shadow mb-2 border-black border-[2px] border-r-0 rounded-none" style={{ height: '48px' }}>Chatimus Prime</div>
+                <div className="w-full text-white text-center py-2 font-bold text-lg shadow mb-2 border-black border-[3px] border-r-0 rounded-none" style={{ backgroundColor: '#003A6C', height: '48px' }}>Chatimus Prime</div>
                 <div className="flex-grow overflow-auto p-6 space-y-6">
                     {messages.map((m, idx) => {
                         if (m.role === 'assistant') {
                             const parsed = parseAssistantMessage(m.content);
                             if (parsed) {
                                 return (
-                                    <div
-                                        key={idx}
-                                        className="p-6 rounded-xl bg-gradient-to-r from-green-100 to-green-200 dark:from-green-800 dark:to-green-900 shadow-md"
-                                    >
-                                        {parsed.summary ? (
-                                            <>
-                                                <div
-                                                    className="font-semibold text-gray-700 dark:text-gray-200 mb-3 prose dark:prose-invert max-w-none break-words whitespace-normal overflow-hidden cursor-pointer"
-                                                    onClick={() => handleSummaryClick(parsed.answer || null)}
-                                                    title="Click to view detailed explanation"
-                                                >
+                                    <div key={idx} className="flex items-start">
+                                        {/* Assistant Profile Picture */}
+                                        <Image
+                                            src="/optimusPFP.jpg"
+                                            alt="Chatimus Prime"
+                                            width={40}
+                                            height={40}
+                                            className="w-10 h-10 rounded-full mr-3 border-2 border-green-700 shadow-md object-cover"
+                                        />
+                                        <div
+                                            className="p-6 rounded-xl bg-gradient-to-r from-green-100 to-green-200 dark:from-green-800 dark:to-green-900 shadow-md max-w-2/3 w-2/3"
+                                        >
+                                            {parsed.summary ? (
+                                                <>
+                                                    <div
+                                                        className="font-semibold text-gray-700 dark:text-gray-200 mb-3 prose dark:prose-invert max-w-none break-words whitespace-normal overflow-hidden cursor-pointer"
+                                                        onClick={() => handleSummaryClick(parsed.answer || null)}
+                                                        title="Click to view detailed explanation"
+                                                    >
+                                                        <ReactMarkdown
+                                                            components={{
+                                                                a: (props) => <a {...props} className="text-blue-500 underline" />, 
+                                                            }}
+                                                        >
+                                                            {parsed.summary.replace(/https?:\/\/[^"]+/g, (match: string) => `[Link](${match})`)}
+                                                        </ReactMarkdown>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <div className="font-semibold prose dark:prose-invert max-w-none break-words whitespace-normal overflow-hidden">
                                                     <ReactMarkdown
                                                         components={{
-                                                            a: ({ node, ...props }) => <a {...props} className="text-blue-500 underline" />,
+                                                            a: (props) => <a {...props} className="text-blue-500 underline" />, 
                                                         }}
                                                     >
-                                                        {parsed.summary.replace(/https?:\/\/[^\s]+/g, (match) => `[Link](${match})`)}
+                                                        {parsed.normalAnswer.replace(/https?:\/\/[^"]+/g, (match: string) => `[Link](${match})`)}
                                                     </ReactMarkdown>
                                                 </div>
-                                            </>
-                                        ) : (
-                                            <div className="font-semibold prose dark:prose-invert max-w-none break-words whitespace-normal overflow-hidden">
-                                                <ReactMarkdown
-                                                    components={{
-                                                        a: ({ node, ...props }) => <a {...props} className="text-blue-500 underline" />,
-                                                    }}
-                                                >
-                                                    {parsed.normalAnswer.replace(/https?:\/\/[^\s]+/g, (match) => `[Link](${match})`)}
-                                                </ReactMarkdown>
-                                            </div>
-                                        )}
-                                        {parsed.relevantProducts && parsed.relevantProducts.length > 0 && (
-                                            <div className="mt-3 text-sm text-green-700 dark:text-green-300">
-                                                <b>Recommended products:</b>{' '}
-                                                {ALL_ITEMS.filter(item => parsed.relevantProducts.includes(item.id))
-                                                    .map(item => item.title)
-                                                    .join(', ')}
-                                            </div>
-                                        )}
+                                            )}
+                                            {parsed.relevantProducts && parsed.relevantProducts.length > 0 && (
+                                                <div className="mt-3 text-sm text-green-700 dark:text-green-300">
+                                                    <b>Recommended products:</b>{' '}
+                                                    {ALL_ITEMS.filter(item => parsed.relevantProducts.includes(item.id))
+                                                        .map(item => item.title)
+                                                        .join(', ')}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 );
                             }
                         }
                         return (
-                            <div
-                                key={idx}
-                                className={`p-6 rounded-xl ${
-                                    m.role === 'user'
-                                        ? 'bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-800 dark:to-blue-900'
-                                        : 'bg-gray-50 dark:bg-gray-800'
-                                } shadow-md`}
-                            >
-                                <b
-                                    className={`block mb-2 ${
-                                        m.role === 'user' ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-200'
-                                    }`}
-                                >
-                                    {m.role === 'user' ? 'You' : 'Assistant'}:
-                                </b>
-                                {m.content}
+                            <div key={idx} className="flex items-start justify-end">
+                                {/* User bubble and profile pic */}
+                                <div className="flex flex-row-reverse items-start w-full">
+                                    <Image
+                                        src="/userPFP.jpg"
+                                        alt="You"
+                                        width={40}
+                                        height={40}
+										className="w-10 h-10 rounded-full ml-3 border-2 border-blue-600 shadow-md object-cover"
+                                    />
+                                    <div className="p-6 rounded-xl bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-800 dark:to-blue-900 shadow-md max-w-2/3 w-2/3">
+                                        <b className="block mb-2 text-blue-700 dark:text-blue-300">You:</b>
+                                        {m.content}
+                                    </div>
+                                </div>
                             </div>
                         );
                     })}
@@ -216,7 +239,8 @@ export default function ChatMarketplace() {
                     <div className="flex space-x-2">
                         {/* Send Button */}
                         <button
-                            className="ml-1 px-6 py-3 bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white rounded-lg shadow-md transition flex items-center justify-center"
+                            className="ml-1 px-6 py-3 text-white rounded-lg shadow-md transition flex items-center justify-center"
+                            style={{ backgroundColor: '#003A6C' }}
                             type="submit"
                             disabled={isLoading}
                             aria-label="Send"
@@ -246,10 +270,10 @@ export default function ChatMarketplace() {
                         <div className="prose dark:prose-invert max-w-none break-words whitespace-normal overflow-hidden">
                             <ReactMarkdown
                                 components={{
-                                    a: ({ node, ...props }) => <a {...props} className="text-blue-500 underline" />,
+                                    a: (props) => <a {...props} className="text-blue-500 underline" />,
                                 }}
                             >
-                                {detailedAnswer.replace(/https?:\/\/[^\s]+/g, (match) => `[Link](${match})`)}
+                                {detailedAnswer.replace(/https?:\/\/[^"]+/g, (match: string) => `[Link](${match})`)}
                             </ReactMarkdown>
                         </div>
                     </div>
