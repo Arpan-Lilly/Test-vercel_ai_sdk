@@ -1,20 +1,54 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useChat } from 'ai/react';
+import React, { useState, useEffect, useRef } from 'react';
+// Remove useChat import to avoid double API calls
 import ReactMarkdown from 'react-markdown';
-import React from 'react';
 import SendIcon from '@mui/icons-material/Send';
 import MicIcon from '@mui/icons-material/Mic';
 
-const ALL_ITEMS = [
+
+const ALL_ITEMS: CatalogItem[] = [
 	{ id: 1, image: '/cat1.png', title: 'AI', description: 'AI in TechHQ' },
 	{ id: 2, image: '/tech1.png', title: 'Argo', description: 'Details about argo in CATS' },
 	{ id: 3, image: '/cat2.png', title: 'CATS', description: 'CATS docs' },
 	{ id: 4, image: '/tech2.png', title: 'TechHQ Pro', description: 'Professional TechHQ tool.' },
 ];
 
-function MarketplaceCatalog({ items, onItemClick, isLoading }) {
+// Define type for catalog item
+type CatalogItem = {
+    id: number;
+    image: string;
+    title: string;
+    description: string;
+}
+
+// Define props for MarketplaceCatalog component
+interface MarketplaceCatalogProps {
+    items: CatalogItem[];
+    onItemClick: (item: CatalogItem) => void;
+    isLoading: boolean;
+}
+
+// We'll replace the fixed thinking steps with dynamic streaming updates
+
+function MarketplaceCatalog({ items, onItemClick, isLoading }: MarketplaceCatalogProps) {
+	// We'll use the isLoading prop to determine if the buttons should be disabled
+	const [isClicking, setIsClicking] = useState(false);
+	
+	// Helper function to handle item clicks with a small debounce
+	const handleItemClick = (item: CatalogItem) => {
+		// Prevent multiple rapid clicks
+		if (isClicking || isLoading) return;
+		
+		setIsClicking(true);
+		onItemClick(item);
+		
+		// Reset after a short delay
+		setTimeout(() => {
+			setIsClicking(false);
+		}, 1000);
+	};
+	
 	return (
 		<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
 			{items.map(item => (
@@ -22,6 +56,7 @@ function MarketplaceCatalog({ items, onItemClick, isLoading }) {
 					key={item.id}
 					className="border dark:border-gray-700 rounded-xl p-6 flex flex-col items-center bg-white dark:bg-gray-800 shadow-lg hover:scale-105 transition-transform duration-300"
 				>
+					{/* Using img tag for simplicity - consider replacing with next/image in production */}
 					<img
 						src={item.image}
 						alt={item.title}
@@ -31,10 +66,10 @@ function MarketplaceCatalog({ items, onItemClick, isLoading }) {
 					<div className="text-sm text-gray-600 dark:text-gray-300 mb-4 text-center">{item.description}</div>
 					<button
 						className={`mt-auto px-6 py-3 bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white rounded-full shadow-md transition ${
-							isLoading ? 'opacity-50 cursor-not-allowed' : ''
+							(isLoading || isClicking) ? 'opacity-50 cursor-not-allowed' : ''
 						}`}
-						onClick={() => onItemClick(item)}
-						disabled={isLoading}
+						onClick={() => handleItemClick(item)}
+						disabled={isLoading || isClicking}
 					>
 						Learn More
 					</button>
@@ -58,6 +93,8 @@ export default function ChatMarketplace() {
     const [catalogItems, setCatalogItems] = useState(ALL_ITEMS);
     const [dark, setDark] = useState(false);
     const [detailedAnswer, setDetailedAnswer] = useState<string | null>(null);
+    const [loadingMessage, setLoadingMessage] = useState("Thinking..."); // Default loading message
+    const eventSourceRef = useRef<EventSource | null>(null);
 
     useEffect(() => {
         if (dark) {
@@ -71,37 +108,306 @@ export default function ChatMarketplace() {
         setDark(!dark);
     };
 
-    const { messages, input, handleInputChange, handleSubmit, isLoading, append } = useChat({
-        api: '/api/chat',
-        streamProtocol: 'text',
-        onError: (error) => setError(error.message),
-        onFinish: (message) => {
-            const parsed = parseAssistantMessage(message.content);
-            if (parsed && Array.isArray(parsed.relevantProducts) && parsed.relevantProducts.length > 0) {
-                setCatalogItems(ALL_ITEMS.filter(item => parsed.relevantProducts.includes(item.id)));
-            } else {
-                setCatalogItems(ALL_ITEMS);
-            }
-            setDetailedAnswer(parsed?.answer || null);
-        },
-    });
+    // Custom chat implementation to replace useChat
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [input, setInput] = useState('');
+    const [messages, setMessages] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
+    
+    // Handle input changes
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setInput(e.target.value);
+    };
+    
+    // Append a message to the chat
+    const append = (message: {role: 'user' | 'assistant', content: string}) => {
+        setMessages(prevMessages => [...prevMessages, message]);
+    };
 
-    const handleCatalogItemClick = (item) => {
+    // Custom submit handler to set up EventSource
+    // Helper function to process the stream response
+    // Improved processStreamResponse function with proper loading state management
+const processStreamResponse = async (response: Response) => {
+    // Create a reader from the response
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+    
+    if (!reader) {
+        setError('ReadableStream not supported by your browser');
+        setIsProcessing(false);
+        setIsLoading(false);
+        return;
+    }
+    
+    let buffer = '';
+    let hasReceivedFinalResult = false;
+    
+    // Read the stream
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            
+            if (done) {
+                // If we never received a final result but the stream ended, handle gracefully
+                if (!hasReceivedFinalResult) {
+                    console.log("Stream ended without final result");
+                    // Reset the loading states
+                    setIsProcessing(false);
+                    setIsLoading(false);
+                    // Set a default message if we didn't get a proper conclusion
+                    setLoadingMessage("Thinking...");
+                }
+                break;
+            }
+            
+            // Decode the chunk and add to buffer
+            const chunk = decoder.decode(value, { stream: true });
+            buffer += chunk;
+            
+            // Process complete events from the buffer
+            let eventEnd = buffer.indexOf('\n\n');
+            while (eventEnd !== -1) {
+                const event = buffer.substring(0, eventEnd);
+                buffer = buffer.substring(eventEnd + 2);
+                
+                // Process the event
+                if (event.startsWith('data: ')) {
+                    try {
+                        const jsonData = event.substring(6); // Remove 'data: ' prefix
+                        console.log("Received data:", jsonData); // Debug log
+                        const data = JSON.parse(jsonData);
+                        
+                        if (data.type === 'status') {
+                            console.log("Status update:", data.status); // Debug log
+                            setLoadingMessage(data.status);
+                        }
+                        else if (data.type === 'summary_ready') {
+                            console.log("Summary ready received"); // Debug log
+                            
+                            // Show the summary immediately
+                            append({
+                                role: 'assistant' as const,
+                                content: JSON.stringify({
+                                    summary: data.summary,
+                                    normalAnswer: '', // Will be filled in later
+                                    relevantProducts: data.relevantProducts,
+                                    answer: null // Detailed answer not available yet
+                                })
+                            });
+                            
+                            // Update catalog items based on relevant products
+                            if (data.relevantProducts && Array.isArray(data.relevantProducts) && data.relevantProducts.length > 0) {
+                                setCatalogItems(ALL_ITEMS.filter(item => data.relevantProducts.includes(item.id)));
+                            } else {
+                                setCatalogItems(ALL_ITEMS);
+                            }
+                            
+                            // We're still loading because we're waiting for the detailed answer
+                            // But we want to indicate that progress has been made
+                            setLoadingMessage("Generating detailed explanation...");
+                        }
+                        else if (data.type === 'result') {
+                            console.log("Final result received"); // Debug log
+                            hasReceivedFinalResult = true;
+                            
+                            // Update the existing message with the full data or add a new one if needed
+                            setMessages(prevMessages => {
+                                // Find the last assistant message
+                                const lastAssistantIndex = [...prevMessages].reverse().findIndex(m => m.role === 'assistant');
+                                
+                                if (lastAssistantIndex !== -1) {
+                                    // If we found an assistant message, update it
+                                    const actualIndex = prevMessages.length - 1 - lastAssistantIndex;
+                                    const newMessages = [...prevMessages];
+                                    
+                                    newMessages[actualIndex] = {
+                                        role: 'assistant',
+                                        content: JSON.stringify({
+                                            summary: data.summary,
+                                            normalAnswer: data.normalAnswer,
+                                            relevantProducts: data.relevantProducts,
+                                            answer: data.answer
+                                        })
+                                    };
+                                    
+                                    return newMessages;
+                                } else {
+                                    // If no assistant message was found, add a new one
+                                    return [...prevMessages, {
+                                        role: 'assistant',
+                                        content: JSON.stringify({
+                                            summary: data.summary,
+                                            normalAnswer: data.normalAnswer,
+                                            relevantProducts: data.relevantProducts,
+                                            answer: data.answer
+                                        })
+                                    }];
+                                }
+                            });
+                            
+                            // Now set the detailed answer
+                            setDetailedAnswer(data.answer || null);
+                            
+                            // Reset all loading states
+                            setIsProcessing(false);
+                            setIsLoading(false);
+                            
+                            // Reset loading message for next interaction
+                            setLoadingMessage("Thinking...");
+                        }
+                        else if (data.type === 'error') {
+                            console.error("Stream error:", data.error);
+                            setError(data.error || 'An error occurred during processing');
+                            setIsProcessing(false);
+                            setIsLoading(false);
+                            // Reset loading message for next interaction
+                            setLoadingMessage("Thinking...");
+                        }
+                    } catch (error) {
+                        console.error('Error parsing SSE data:', error, event.substring(6));
+                        // If there's an error parsing the data, we still need to continue processing the stream
+                    }
+                }
+                
+                // Look for the next event
+                eventEnd = buffer.indexOf('\n\n');
+            }
+        }
+    } catch (err) {
+        console.error('Error reading stream:', err);
+        setError('Error processing response: ' + ((err as Error)?.message || 'Unknown error'));
+        setIsProcessing(false);
+        setIsLoading(false);
+        // Reset loading message for next interaction
+        setLoadingMessage("Thinking...");
+    }
+};
+
+    // Handle form submission
+    const handleSubmit = async (e?: React.FormEvent) => {
+        e?.preventDefault();
+        
+        // Don't submit if input is empty or we're already processing something
+        const userInput = input.trim();
+        if (!userInput || isLoading || isProcessing) return;
+        
+        // Clean up previous EventSource if it exists
+        if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+            eventSourceRef.current = null;
+        }
+        
+        // Mark as processing and set initial loading message
+        setIsProcessing(true);
+        setIsLoading(true); // Also set isLoading for UI consistency
+        setLoadingMessage("Initializing...");
+        setError(null); // Clear any previous errors
+        
+        // Create a copy of the user message to use for both UI and API request
+        const userMessage = {
+            role: 'user' as const,
+            content: userInput,
+        };
+        
+        // Add user message to the chat UI
+        append(userMessage);
+        
+        // Clear the input field
+        setInput('');
+        
+        try {
+            // Call the API with fetch to handle the streaming response
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    messages: [...messages, userMessage]
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            
+            // Process the streaming response
+            await processStreamResponse(response);
+        } catch (error) {
+            console.error('Error in handleSubmit:', error);
+            setError((error as Error).message || 'Failed to connect to server');
+            setIsProcessing(false);
+            setIsLoading(false);
+            setLoadingMessage("Thinking..."); // Reset loading message
+        }
+    };
+
+    // Handle catalog item clicks to ask about specific products
+    const handleCatalogItemClick = (item: typeof ALL_ITEMS[0]) => {
         const question = `Tell me more about ${item.title}`;
-        append({
-            id: `${Date.now()}`,
-            role: 'user',
+        
+        // Don't submit if we're already processing something
+        if (isLoading || isProcessing) return;
+        
+        // Clean up previous EventSource if it exists
+        if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+            eventSourceRef.current = null;
+        }
+        
+        // Mark as processing and set initial loading message
+        setIsProcessing(true);
+        setIsLoading(true);
+        setLoadingMessage("Initializing...");
+        setError(null); // Clear any previous errors
+        
+        // Create user message
+        const userMessage = {
+            role: 'user' as const,
             content: question,
-        });
-        handleSubmit(undefined, {
-            body: { input: question },
-        });
+        };
+        
+        // Add user message to the chat UI
+        append(userMessage);
+        
+        // Show the question in the input field for context
+        setInput('');
+        
+        try {
+            // Call the API with fetch to handle the streaming response
+            fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    messages: [...messages, userMessage]
+                })
+            }).then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                
+                return processStreamResponse(response);
+            }).catch(error => {
+                console.error('Fetch error:', error);
+                setError(error.message);
+                setIsProcessing(false);
+                setIsLoading(false);
+            });
+            
+        } catch (error) {
+            console.error('Error setting up stream:', error);
+            setError('Failed to set up streaming connection');
+            setIsProcessing(false);
+            setIsLoading(false);
+        }
     };
 
     const handleSummaryClick = (detailedResponse: string | null) => {
-    // Toggle detailedAnswer: if the same summary is clicked, hide the detailed explanation
-    setDetailedAnswer(prev => (prev === detailedResponse ? null : detailedResponse));
-};
+        // Toggle detailedAnswer: if the same summary is clicked, hide the detailed explanation
+        setDetailedAnswer(prev => (prev === detailedResponse ? null : detailedResponse));
+    };
 
     return (
         <div className="flex h-screen bg-gradient-to-br from-gray-100 to-gray-300 dark:from-gray-900 dark:to-gray-800 transition-colors">
@@ -148,10 +454,10 @@ export default function ChatMarketplace() {
                                                 >
                                                     <ReactMarkdown
                                                         components={{
-                                                            a: ({ node, ...props }) => <a {...props} className="text-blue-500 underline" />,
+                                                            a: ({ ...props }) => <a {...props} className="text-blue-500 underline" />,
                                                         }}
                                                     >
-                                                        {parsed.summary.replace(/https?:\/\/[^\s]+/g, (match) => `[Link](${match})`)}
+                                                        {parsed.summary.replace(/https?:\/\/[^\s]+/g, (match: string) => `[Link](${match})`)}
                                                     </ReactMarkdown>
                                                 </div>
                                             </>
@@ -159,10 +465,10 @@ export default function ChatMarketplace() {
                                             <div className="font-semibold prose dark:prose-invert max-w-none break-words whitespace-normal overflow-hidden">
                                                 <ReactMarkdown
                                                     components={{
-                                                        a: ({ node, ...props }) => <a {...props} className="text-blue-500 underline" />,
+                                                        a: ({ ...props }) => <a {...props} className="text-blue-500 underline" />,
                                                     }}
                                                 >
-                                                    {parsed.normalAnswer.replace(/https?:\/\/[^\s]+/g, (match) => `[Link](${match})`)}
+                                                    {parsed.normalAnswer.replace(/https?:\/\/[^\s]+/g, (match: string) => `[Link](${match})`)}
                                                 </ReactMarkdown>
                                             </div>
                                         )}
@@ -198,9 +504,14 @@ export default function ChatMarketplace() {
                             </div>
                         );
                     })}
-                    {isLoading && (
-                        <div className="p-3 text-gray-500 dark:text-gray-300">
-                            Grabbing up info for you.....
+                    {(isLoading || isProcessing) && (
+                        <div className="p-3 text-gray-500 dark:text-gray-300 animate-pulse">
+                            <div className="flex items-center">
+                                <div className="w-3 h-3 bg-gray-400 dark:bg-gray-600 rounded-full mr-2 animate-bounce"></div>
+                                <div className="w-3 h-3 bg-gray-400 dark:bg-gray-600 rounded-full mr-2 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                                <div className="w-3 h-3 bg-gray-400 dark:bg-gray-600 rounded-full mr-3 animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                                {loadingMessage}
+                            </div>
                         </div>
                     )}
                     {error && <div className="p-3 text-red-500">{error}</div>}
@@ -246,10 +557,10 @@ export default function ChatMarketplace() {
                         <div className="prose dark:prose-invert max-w-none break-words whitespace-normal overflow-hidden">
                             <ReactMarkdown
                                 components={{
-                                    a: ({ node, ...props }) => <a {...props} className="text-blue-500 underline" />,
+                                    a: ({ ...props }) => <a {...props} className="text-blue-500 underline" />,
                                 }}
                             >
-                                {detailedAnswer.replace(/https?:\/\/[^\s]+/g, (match) => `[Link](${match})`)}
+                                {detailedAnswer.replace(/https?:\/\/[^\s]+/g, (match: string) => `[Link](${match})`)}
                             </ReactMarkdown>
                         </div>
                     </div>
