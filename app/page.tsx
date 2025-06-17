@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useChat } from 'ai/react';
 import ReactMarkdown from 'react-markdown';
 import React from 'react';
@@ -47,7 +47,7 @@ function MarketplaceCatalog({ items, onItemClick, isLoading }: MarketplaceCatalo
 					<div className="text-sm text-gray-600 dark:text-gray-300 mb-4 text-center">{item.description}</div>
 					<button
 						className={`mt-auto px-6 py-3 text-white rounded-full shadow-md transition ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-						style={{ backgroundColor: '#003A6C' }}
+						style={{ backgroundColor: '#D31710' }}
 						onClick={() => onItemClick(item)}
 						disabled={isLoading}
 					>
@@ -73,18 +73,7 @@ export default function ChatMarketplace() {
     const [catalogItems, setCatalogItems] = useState(ALL_ITEMS);
     const [dark, setDark] = useState(false);
     const [detailedAnswer, setDetailedAnswer] = useState<string | null>(null);
-
-    useEffect(() => {
-        if (dark) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
-    }, [dark]);
-
-    const toggleDark = () => {
-        setDark(!dark);
-    };
+    const chatContainerRef = useRef<HTMLDivElement>(null);
 
     const { messages, input, handleInputChange, handleSubmit, isLoading, append } = useChat({
         api: '/api/chat',
@@ -100,6 +89,24 @@ export default function ChatMarketplace() {
             setDetailedAnswer(parsed?.answer || null);
         },
     });
+
+    useEffect(() => {
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+    }, [messages]);
+
+    useEffect(() => {
+        if (dark) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    }, [dark]);
+
+    const toggleDark = () => {
+        setDark(!dark);
+    };
 
     const handleCatalogItemClick = (item: MarketplaceItem) => {
         const question = `Tell me more about ${item.title}`;
@@ -120,31 +127,27 @@ export default function ChatMarketplace() {
 
     return (
         <div className="flex h-screen bg-gradient-to-br from-gray-100 to-gray-300 dark:from-gray-900 dark:to-gray-800 transition-colors">
-            {/* Top Banner */}
-            <div className="absolute top-0 right-0 md:w-2/3 w-full flex items-center justify-between border-black border-[3px] rounded-none" style={{ backgroundColor: '#003A6C', height: '48px' }}>
-                <span className="text-lg md:text-xl text-white font-bold pl-4">Digital Core Marketplace</span>
-                <div className="flex items-center space-x-2 pr-4">
-                    <span className="text-sm text-white drop-shadow">Light</span>
-                    <button
-                        className="w-14 h-7 flex items-center bg-white bg-opacity-60 dark:bg-gray-700 rounded-full p-1 border border-gray-300 dark:border-gray-700 shadow transition"
-                        onClick={toggleDark}
-                        aria-label="Toggle dark mode"
-                    >
-                        <div
-                            className={`w-6 h-6 bg-white dark:bg-gray-800 rounded-full shadow-md border border-gray-400 dark:border-gray-900 transform transition-transform ${
-                                dark ? 'translate-x-7' : ''
-                            }`}
-                        ></div>
-                    </button>
-                    <span className="text-sm text-white drop-shadow">Dark</span>
-                </div>
-            </div>
-
             {/* Chatbot Section */}
-            <div className="w-full md:w-1/3 border-r dark:border-gray-800 flex flex-col bg-white dark:bg-gray-900 shadow-lg pt-0">
+            <div className="w-full md:w-1/3 flex flex-col bg-white dark:bg-gray-900 pt-0 relative border-r-0 dark:border-r-0">
                 {/* Chatimus Prime Banner */}
-                <div className="w-full text-white text-center py-2 font-bold text-lg shadow mb-2 border-black border-[3px] border-r-0 rounded-none" style={{ backgroundColor: '#003A6C', height: '48px' }}>Chatimus Prime</div>
-                <div className="flex-grow overflow-auto p-6 space-y-6">
+                <div className="w-full flex items-center fixed md:static top-0 left-0 md:left-auto md:top-auto z-10 border-2 border-r border-r-[1px] border-[#D31710] shadow-md" style={{height: '48px', backgroundColor: '#818C94', boxShadow: '0 2px 8px 0 rgba(211,23,16,0.10)'}}>
+                    <div className="flex items-center w-full px-4">
+                        <Image
+                            src="/Lilly-Script-Red-RGB.png"
+                            alt="Lilly Logo"
+                            width={72}
+                            height={72}
+                            className="w-18 h-18 object-contain mr-4"
+                            priority
+                        />
+                        <span className="text-white font-bold text-base md:text-lg mx-auto" style={{
+                            textShadow: '-0.5px -0.5px 0 #D31710, 0.5px -0.5px 0 #D31710, -0.5px 0.5px 0 #D31710, 0.5px 0.5px 0 #D31710'
+                        }}>Chatimus Prime</span>
+                    </div>
+                </div>
+                {/* Spacer for fixed header */}
+                <div style={{ height: '48px' }}></div>
+                <div className="flex-grow overflow-auto p-6 space-y-6" ref={chatContainerRef}>
                     {messages.map((m, idx) => {
                         if (m.role === 'assistant') {
                             const parsed = parseAssistantMessage(m.content);
@@ -157,10 +160,11 @@ export default function ChatMarketplace() {
                                             alt="Chatimus Prime"
                                             width={40}
                                             height={40}
-                                            className="w-10 h-10 rounded-full mr-3 border-2 border-green-700 shadow-md object-cover"
+                                            className="w-10 h-10 rounded-full mr-3 border-2 border-[#D31710] shadow-md object-cover"
                                         />
                                         <div
-                                            className="p-6 rounded-xl bg-gradient-to-r from-green-100 to-green-200 dark:from-green-800 dark:to-green-900 shadow-md max-w-2/3 w-2/3"
+                                            className="p-6 rounded-xl shadow-md max-w-2/3 w-2/3"
+                                            style={{ background: '#F9EEED' }}
                                         >
                                             {parsed.summary ? (
                                                 <>
@@ -190,7 +194,7 @@ export default function ChatMarketplace() {
                                                 </div>
                                             )}
                                             {parsed.relevantProducts && parsed.relevantProducts.length > 0 && (
-                                                <div className="mt-3 text-sm text-green-700 dark:text-green-300">
+                                                <div className="mt-3 text-sm" style={{ color: '#D31710' }}>
                                                     <b>Recommended products:</b>{' '}
                                                     {ALL_ITEMS.filter(item => parsed.relevantProducts.includes(item.id))
                                                         .map(item => item.title)
@@ -209,13 +213,15 @@ export default function ChatMarketplace() {
                                     <Image
                                         src="/userPFP.jpg"
                                         alt="You"
-                                        width={40}
-                                        height={40}
-										className="w-10 h-10 rounded-full ml-3 border-2 border-blue-600 shadow-md object-cover"
+										width={40}
+										height={40}
+										className="w-10 h-10 rounded-full ml-3 border-2 border-[#D31710] shadow-md object-cover"
                                     />
-                                    <div className="p-6 rounded-xl bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-800 dark:to-blue-900 shadow-md max-w-2/3 w-2/3">
-                                        <b className="block mb-2 text-blue-700 dark:text-blue-300">You:</b>
-                                        {m.content}
+                                    <div className="p-6 rounded-xl shadow-md max-w-2/3 w-fit min-w-[3rem] break-words" style={{ background: '#D8E4EC' }}>
+                                        <div className="flex items-baseline space-x-2">
+                                            <b className="text-[#D31710] dark:text-[#D31710] whitespace-nowrap">You:</b>
+                                            <span className="break-words">{m.content}</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -240,7 +246,7 @@ export default function ChatMarketplace() {
                         {/* Send Button */}
                         <button
                             className="ml-1 px-6 py-3 text-white rounded-lg shadow-md transition flex items-center justify-center"
-                            style={{ backgroundColor: '#003A6C' }}
+                            style={{ backgroundColor: '#D31710' }}
                             type="submit"
                             disabled={isLoading}
                             aria-label="Send"
@@ -250,7 +256,8 @@ export default function ChatMarketplace() {
 
                         {/* Speakerphone Button */}
                         <button
-                            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white rounded-lg shadow-md transition flex items-center justify-center"
+                            className="px-6 py-3 text-white rounded-lg shadow-md transition flex items-center justify-center"
+                            style={{ background: '#F7513F' }}
                             type="button"
                             disabled={isLoading}
                             aria-label="Voice Chat"
@@ -260,24 +267,52 @@ export default function ChatMarketplace() {
                     </div>
                 </form>
             </div>
-
+            {/* Vertical Separator */}
+            <div className="hidden md:block w-px bg-black opacity-30 h-full" style={{ minWidth: '1px' }}></div>
             {/* Marketplace Section */}
-            <div className="w-full md:w-2/3 p-10 overflow-auto bg-gray-50 dark:bg-gray-900 pt-14">
-                <MarketplaceCatalog items={catalogItems} onItemClick={handleCatalogItemClick} isLoading={isLoading} />
-                {/* Detailed Answer Section */}
-                {detailedAnswer && (
-                    <div className="mt-8 p-6 rounded-xl bg-gradient-to-r from-green-100 to-green-200 dark:from-green-800 dark:to-green-900 shadow-md">
-                        <div className="prose dark:prose-invert max-w-none break-words whitespace-normal overflow-hidden">
-                            <ReactMarkdown
-                                components={{
-                                    a: (props) => <a {...props} className="text-blue-500 underline" />,
-                                }}
-                            >
-                                {detailedAnswer.replace(/https?:\/\/[^"]+/g, (match: string) => `[Link](${match})`)}
-                            </ReactMarkdown>
-                        </div>
+            <div className="w-full md:w-2/3 p-0 overflow-auto bg-gray-50 dark:bg-gray-900 pt-0 flex flex-col relative">
+                {/* Digital Core Marketplace Banner */}
+                <div className="w-full flex items-center justify-between fixed md:static top-0 right-0 md:right-auto md:top-auto z-10 border-2 border-l border-l-[1px] border-[#D31710] shadow-md" style={{height: '48px', backgroundColor: '#818C94', boxShadow: '0 2px 8px 0 rgba(211,23,16,0.10)'}}>
+                    <div className="flex-1 flex items-center pl-4">
+                        <span className="text-white font-bold text-base md:text-lg" style={{
+                            textShadow: '-0.5px -0.5px 0 #D31710, 0.5px -0.5px 0 #D31710, -0.5px 0.5px 0 #D31710, 0.5px 0.5px 0 #D31710'
+                        }}>Digital Core Marketplace</span>
                     </div>
-                )}
+                    <div className="flex items-center pr-4 space-x-2">
+                        <span className="text-sm text-white drop-shadow">Light</span>
+                        <button
+                            className="w-14 h-7 flex items-center bg-white bg-opacity-60 dark:bg-gray-700 rounded-full p-1 border border-gray-300 dark:border-gray-700 shadow transition"
+                            onClick={toggleDark}
+                            aria-label="Toggle dark mode"
+                        >
+                            <div
+                                className={`w-6 h-6 bg-white dark:bg-gray-800 rounded-full shadow-md border border-gray-400 dark:border-gray-900 transform transition-transform ${
+                                    dark ? 'translate-x-7' : ''
+                                }`}
+                            ></div>
+                        </button>
+                        <span className="text-sm text-white drop-shadow">Dark</span>
+                    </div>
+                </div>
+                {/* Spacer for fixed header */}
+                <div style={{ height: '48px' }}></div>
+                <div className="p-10 flex-1 overflow-auto">
+                    <MarketplaceCatalog items={catalogItems} onItemClick={handleCatalogItemClick} isLoading={isLoading} />
+                    {/* Detailed Answer Section */}
+                    {detailedAnswer && (
+                        <div className="mt-8 p-6 rounded-xl shadow-md" style={{ background: '#F9EEED' }}>
+                            <div className="prose dark:prose-invert max-w-none break-words whitespace-normal overflow-hidden">
+                                <ReactMarkdown
+                                    components={{
+                                        a: (props) => <a {...props} className="text-blue-500 underline" />, 
+                                    }}
+                                >
+                                    {detailedAnswer.replace(/https?:\/\/[^"']+/g, (match: string) => `[Link](${match})`)}
+                                </ReactMarkdown>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
