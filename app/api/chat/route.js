@@ -78,7 +78,7 @@ Guidelines:
 - If you don't find relevant information in the context, say so, but still try to provide a general helpful answer based on what you know.
 - If the question is asking about something in brief. Please provide a concise answer.
 - Do not return JSON, code blocks, or any structured data. Provide a plain text response in Markdown format.
-
+- Please dont try to give consise answers, just answer the question as best as you can.
 
 Context:
 ${context}
@@ -176,6 +176,7 @@ ${normalAnswer}
         role: 'system',
         content: `
 You are a helpful assistant providing detailed explanations.
+Do not provide a summary, just a detailed explanation.
 
 Guidelines:
 - Provide a detailed Markdown explanation based on the following text:

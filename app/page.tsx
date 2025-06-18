@@ -80,11 +80,15 @@ function MarketplaceCatalog({ items, onItemClick, isLoading }: MarketplaceCatalo
 }
 
 function parseAssistantMessage(content: string) {
-	try {
-		return JSON.parse(content);
-	} catch {
-		return null;
-	}
+    try {
+        // Try to parse as JSON
+        const parsed = JSON.parse(content);
+        return parsed;
+    } catch (error) {
+        // If it's not valid JSON, return null
+        console.error("Failed to parse message:", error);
+        return null;
+    }
 }
 
 
@@ -205,14 +209,31 @@ const processStreamResponse = async (response: Response) => {
                             // We're still loading because we're waiting for the detailed answer
                             // But we want to indicate that progress has been made
                             setLoadingMessage("Generating detailed explanation...");
-                        }
-                        else if (data.type === 'result') {
+                        }                        else if (data.type === 'result') {
                             console.log("Final result received"); // Debug log
                             hasReceivedFinalResult = true;
                             
-                            // Update the existing message with the full data or add a new one if needed
+                            // Check the current message flow to decide whether to update or add a message
                             setMessages(prevMessages => {
-                                // Find the last assistant message
+                                // Check if the last message is from the user
+                                const lastMessage = prevMessages[prevMessages.length - 1];
+                                const isLastMessageFromUser = lastMessage && lastMessage.role === 'user';
+                                
+                                // If the last message is from the user, we always add a new assistant message
+                                if (isLastMessageFromUser) {
+                                    console.log("Adding new assistant message for new user question");
+                                    return [...prevMessages, {
+                                        role: 'assistant',
+                                        content: JSON.stringify({
+                                            summary: data.summary,
+                                            normalAnswer: data.normalAnswer,
+                                            relevantProducts: data.relevantProducts,
+                                            answer: data.answer
+                                        })
+                                    }];
+                                }
+                                
+                                // Otherwise, look for a partial response to update (from summary_ready event)
                                 const lastAssistantIndex = [...prevMessages].reverse().findIndex(m => m.role === 'assistant');
                                 
                                 if (lastAssistantIndex !== -1) {
@@ -437,53 +458,54 @@ const processStreamResponse = async (response: Response) => {
                 <div className="w-full bg-red-600 text-white text-center py-2 font-bold text-lg shadow mb-2 border-black border-[2px] border-r-0 rounded-none" style={{ height: '48px' }}>Chatimus Prime</div>
                 <div className="flex-grow overflow-auto p-6 space-y-6">
                     {messages.map((m, idx) => {
-                        if (m.role === 'assistant') {
-                            const parsed = parseAssistantMessage(m.content);
-                            if (parsed) {
-                                return (
-                                    <div
-                                        key={idx}
-                                        className="p-6 rounded-xl bg-gradient-to-r from-green-100 to-green-200 dark:from-green-800 dark:to-green-900 shadow-md"
-                                    >
-                                        {parsed.summary ? (
-                                            <>
-                                                <div
-                                                    className="font-semibold text-gray-700 dark:text-gray-200 mb-3 prose dark:prose-invert max-w-none break-words whitespace-normal overflow-hidden cursor-pointer"
-                                                    onClick={() => handleSummaryClick(parsed.answer || null)}
-                                                    title="Click to view detailed explanation"
-                                                >
-                                                    <ReactMarkdown
-                                                        components={{
-                                                            a: ({ ...props }) => <a {...props} className="text-blue-500 underline" />,
-                                                        }}
-                                                    >
-                                                        {parsed.summary.replace(/https?:\/\/[^\s]+/g, (match: string) => `[Link](${match})`)}
-                                                    </ReactMarkdown>
-                                                </div>
-                                            </>
-                                        ) : (
-                                            <div className="font-semibold prose dark:prose-invert max-w-none break-words whitespace-normal overflow-hidden">
-                                                <ReactMarkdown
-                                                    components={{
-                                                        a: ({ ...props }) => <a {...props} className="text-blue-500 underline" />,
-                                                    }}
-                                                >
-                                                    {parsed.normalAnswer.replace(/https?:\/\/[^\s]+/g, (match: string) => `[Link](${match})`)}
-                                                </ReactMarkdown>
-                                            </div>
-                                        )}
-                                        {parsed.relevantProducts && parsed.relevantProducts.length > 0 && (
-                                            <div className="mt-3 text-sm text-green-700 dark:text-green-300">
-                                                <b>Recommended products:</b>{' '}
-                                                {ALL_ITEMS.filter(item => parsed.relevantProducts.includes(item.id))
-                                                    .map(item => item.title)
-                                                    .join(', ')}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            }
-                        }
+                        if (m.role === 'assistant') {const parsed = parseAssistantMessage(m.content);
+        if (parsed) {
+            return (
+                <div
+                    key={idx}
+                    className="p-6 rounded-xl bg-gradient-to-r from-green-100 to-green-200 dark:from-green-800 dark:to-green-900 shadow-md"
+                >
+                    {parsed.summary ? (
+                        <>
+                            <div
+                                className="font-semibold text-gray-700 dark:text-gray-200 mb-3 prose dark:prose-invert max-w-none break-words whitespace-normal overflow-hidden cursor-pointer"
+                                onClick={() => handleSummaryClick(parsed.answer || null)}
+                                title="Click to view detailed explanation"
+                            >
+                                <ReactMarkdown
+                                    components={{
+                                        a: ({ ...props }) => <a {...props} className="text-blue-500 underline" />,
+                                    }}
+                                >
+                                    {parsed.summary.replace(/https?:\/\/[^\s]+/g, (match: string) => `[Link](${match})`)}
+                                </ReactMarkdown>
+                            </div>
+                        </>
+                    ) : parsed.normalAnswer ? (
+                        <div className="font-semibold prose dark:prose-invert max-w-none break-words whitespace-normal overflow-hidden">
+                            <ReactMarkdown
+                                components={{
+                                    a: ({ ...props }) => <a {...props} className="text-blue-500 underline" />,
+                                }}
+                            >
+                                {parsed.normalAnswer.replace(/https?:\/\/[^\s]+/g, (match: string) => `[Link](${match})`)}
+                            </ReactMarkdown>
+                        </div>
+                    ) : (
+                        <div className="text-gray-500">No content available</div>
+                    )}
+                    {parsed.relevantProducts && parsed.relevantProducts.length > 0 && (
+                        <div className="mt-3 text-sm text-green-700 dark:text-green-300">
+                            <b>Recommended products:</b>{' '}
+                            {ALL_ITEMS.filter(item => parsed.relevantProducts.includes(item.id))
+                                .map(item => item.title)
+                                .join(', ')}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+    }
                         return (
                             <div
                                 key={idx}
