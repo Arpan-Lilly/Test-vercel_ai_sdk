@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import SendIcon from '@mui/icons-material/Send';
 import MicIcon from '@mui/icons-material/Mic';
+import Image from 'next/image';
 
 
 const ALL_ITEMS: CatalogItem[] = [
@@ -433,8 +434,17 @@ const processStreamResponse = async (response: Response) => {
     return (
         <div className="flex h-screen bg-gradient-to-br from-gray-100 to-gray-300 dark:from-gray-900 dark:to-gray-800 transition-colors">
             {/* Top Banner */}
-            <div className="absolute top-0 right-0 md:w-2/3 w-full flex items-center justify-between bg-red-600 text-white py-2 px-6 font-bold text-lg shadow mb-2 z-10 border-black border-t-[2px] border-b-[2px] border-r-[2px] border-l-0 rounded-none" style={{ height: '48px' }}>
-                <span className="text-lg md:text-xl">Digital Core Marketplace</span>
+            <div className="absolute top-0 right-0 md:w-2/3 w-full flex items-center justify-between text-white py-2 px-6 font-bold text-lg shadow mb-2 z-10 border-black border-t-[2px] border-b-[2px] border-r-[2px] border-l-0 rounded-none" style={{ height: '48px', backgroundColor: '#818C94', borderTop: '2px solid #D31710', borderBottom: '2px solid #D31710', borderRight: '2px solid #D31710', borderLeft: '1px solid #D31710' }}>
+                <span className="text-2xl md:text-3xl px-2 flex items-center" style={{
+                  WebkitTextStroke: '0.8px #D31710',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  letterSpacing: '0.5px',
+                  padding: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  height: '48px'
+                }}>Digital Core Marketplace</span>
                 <div className="flex items-center space-x-2">
                     <span className="text-sm text-white drop-shadow">Light</span>
                     <button
@@ -455,7 +465,20 @@ const processStreamResponse = async (response: Response) => {
             {/* Chatbot Section */}
             <div className="w-full md:w-1/3 border-r dark:border-gray-800 flex flex-col bg-white dark:bg-gray-900 shadow-lg pt-0">
                 {/* Chatimus Prime Banner */}
-                <div className="w-full bg-red-600 text-white text-center py-2 font-bold text-lg shadow mb-2 border-black border-[2px] border-r-0 rounded-none" style={{ height: '48px' }}>Chatimus Prime</div>
+                <div className="w-full text-white text-center py-2 font-bold text-lg shadow mb-2 border-black border-[2px] border-r-0 rounded-none flex items-center justify-center" style={{ height: '48px', backgroundColor: '#818C94', border: '2px solid #D31710', borderRight: 0, justifyContent: 'flex-start' }}>
+                  <Image src="/Lilly-Script-Red-RGB.png" alt="Lilly Logo" width={48} height={36} style={{ marginRight: '16px', marginLeft: '0', height: '36px', width: 'auto' }} />
+                  <span style={{
+                    WebkitTextStroke: '0.8px #D31710',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    fontSize: '2rem',
+                    letterSpacing: '0.5px',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    height: '48px'
+                  }}>Chatimus Prime</span>
+                </div>
                 <div className="flex-grow overflow-auto p-6 space-y-6">
                     {messages.map((m, idx) => {
                         if (m.role === 'assistant') {const parsed = parseAssistantMessage(m.content);
@@ -507,22 +530,38 @@ const processStreamResponse = async (response: Response) => {
         }
     }
                         return (
-                            <div
-                                key={idx}
-                                className={`p-6 rounded-xl ${
-                                    m.role === 'user'
-                                        ? 'bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-800 dark:to-blue-900'
-                                        : 'bg-gray-50 dark:bg-gray-800'
-                                } shadow-md`}
-                            >
-                                <b
-                                    className={`block mb-2 ${
-                                        m.role === 'user' ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-200'
-                                    }`}
+                            <div key={idx} className="flex justify-end items-end w-full">
+                                <div
+                                    className="relative flex items-end max-w-2/3"
+                                    style={{ maxWidth: '66%', marginRight: '12px' }}
                                 >
-                                    {m.role === 'user' ? 'You' : 'Assistant'}:
-                                </b>
-                                {m.content}
+                                    <div
+                                        className="p-4 rounded-xl bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-800 dark:to-blue-900 shadow-md text-right flex items-start"
+                                        style={{
+                                            display: 'inline-flex',
+                                            width: 'fit-content',
+                                            maxWidth: '100%',
+                                            wordBreak: 'break-word',
+                                            borderRight: 0,
+                                            borderTopRightRadius: 0,
+                                            marginLeft: 0,
+                                            alignItems: 'flex-start',
+                                            paddingTop: '0.5rem',
+                                            paddingBottom: '0.5rem',
+                                            paddingLeft: '1rem',
+                                            paddingRight: '1rem',
+                                        }}
+                                    >
+                                        <span className="block mr-2 text-blue-700 dark:text-blue-300 font-bold whitespace-nowrap text-right" style={{ fontSize: '1rem', lineHeight: 1, alignSelf: 'flex-start' }}>You:</span>
+                                        <span className="text-right w-full" style={{ wordBreak: 'break-word' }}>{m.content}</span>
+                                    </div>
+                                </div>
+                                <img
+                                    src="/userPFP.jpg"
+                                    alt="User Profile"
+                                    className="w-10 h-10 rounded-full border-2 shadow ml-2 object-cover"
+                                    style={{ minWidth: '40px', minHeight: '40px', borderColor: '#2563eb', alignSelf: 'flex-start' }}
+                                />
                             </div>
                         );
                     })}
@@ -559,12 +598,13 @@ const processStreamResponse = async (response: Response) => {
 
                         {/* Speakerphone Button */}
                         <button
-                            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white rounded-lg shadow-md transition flex items-center justify-center"
+                            className="px-6 py-3 rounded-lg shadow-md transition flex items-center justify-center"
                             type="button"
                             disabled={isLoading}
                             aria-label="Voice Chat"
+                            style={{ background: '#F7513F', border: '2px solid #F7513F' }}
                         >
-                            <MicIcon />
+                            <MicIcon style={{ color: 'white' }} />
                         </button>
                     </div>
                 </form>
@@ -575,8 +615,8 @@ const processStreamResponse = async (response: Response) => {
                 <MarketplaceCatalog items={catalogItems} onItemClick={handleCatalogItemClick} isLoading={isLoading} />
                 {/* Detailed Answer Section */}
                 {detailedAnswer && (
-                    <div className="mt-8 p-6 rounded-xl bg-gradient-to-r from-green-100 to-green-200 dark:from-green-800 dark:to-green-900 shadow-md">
-                        <div className="prose dark:prose-invert max-w-none break-words whitespace-normal overflow-hidden">
+                    <div className="mt-8 p-6 rounded-xl shadow-md" style={{ background: '#F9EEED' }}>
+                        <div className="prose dark:prose-invert max-w-none break-words whitespace-normal overflow-hidden" style={{ background: '#F9EEED' }}>
                             <ReactMarkdown
                                 components={{
                                     a: ({ ...props }) => <a {...props} className="text-blue-500 underline" />,

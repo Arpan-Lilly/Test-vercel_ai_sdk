@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
 import axios from 'axios';
-import { LangChainAdapter } from 'ai';
+// import { LangChainAdapter } from 'ai';
 
 const EMBEDDING_SERVICE_URL = 'http://localhost:5001/embed';
 
